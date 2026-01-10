@@ -43,7 +43,7 @@ export default {
 
     // 先获取当前用户信息（兜底）
     try {
-      const res = await axios.get('http://localhost:3000/api/users');
+      const res = await axios.get(process.env.VUE_APP_HOST + 'api/users');
       this.user = res.data.find(u => u.id === this.userId);
     } catch (e) {
       console.error('Failed to fetch user');
@@ -59,7 +59,7 @@ export default {
   },
   methods: {
     connectWebSocket () {
-      this.ws = new WebSocket('ws://localhost:3000');
+      this.ws = new WebSocket(process.env.VUE_APP_WS_API);
 
       this.ws.onopen = () => {
         console.log('Join page connected to WebSocket');

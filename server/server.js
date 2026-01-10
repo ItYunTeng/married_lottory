@@ -9,12 +9,15 @@ const redis = require('./redisClient'); // 引入 Redis 客户端
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+const wss = new WebSocket.Server({ server, path: '/ws' });
 
 // 微信配置（从环境变量读取更安全）
-const WECHAT_APPID = process.env.WECHAT_APPID || 'your_appid';
-const WECHAT_SECRET = process.env.WECHAT_SECRET || 'your_secret';
-const REDIRECT_URI = process.env.REDIRECT_URI || 'http://localhost:3000/auth/callback';
+const DOMAIN = process.env.DOMAIN || '';
+const WECHAT_APPID = process.env.WECHAT_APPID || '';
+const WECHAT_SECRET = process.env.WECHAT_SECRET || '';
+const REDIRECT_URI = `https://${DOMAIN}/${process.env.REDIRECT_URI}` || '';
+const WECHAT_OAUTH_URL = process.env.WECHAT_OAUTH_URL || '';
+const WECHAT_API_URL = process.env.WECHAT_API_URL || '';
 
 // 内存中的 WebSocket 客户端（用于广播）
 const clients = new Set();
@@ -47,7 +50,7 @@ async function getEligibleUsers() {
 // 路由：微信授权跳转
 app.get('/auth/wechat', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
-  const url = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${WECHAT_APPID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=snsapi_userinfo&state=${state}#wechat_redirect`;
+  const url = `${WECHAT_OAUTH_URL}/connect/oauth2/authorize?appid=${WECHAT_APPID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=snsapi_userinfo&state=${state}#wechat_redirect`;
   res.redirect(url);
 });
 
@@ -61,13 +64,13 @@ app.get('/auth/callback', async (req, res) => {
   try {
     // 1. 获取 access_token
     const tokenRes = await axios.get(
-      `https://api.weixin.qq.com/sns/oauth2/access_token?appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}&code=${code}&grant_type=authorization_code`
+      `${WECHAT_API_URL}/sns/oauth2/access_token?appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}&code=${code}&grant_type=authorization_code`
     );
     const { access_token, openid } = tokenRes.data;
 
     // 2. 获取用户信息
     const userRes = await axios.get(
-      `https://api.weixin.qq.com/sns/userinfo?access_token=${access_token}&openid=${openid}&lang=zh_CN`
+      `${WECHAT_API_URL}/sns/userinfo?access_token=${access_token}&openid=${openid}&lang=zh_CN`
     );
     const wechatUser = userRes.data;
 
@@ -90,7 +93,7 @@ app.get('/auth/callback', async (req, res) => {
     broadcast('NEW_USER', user);
 
     // 6. 重定向到参与成功页
-    res.redirect(`http://localhost:8080/join?userId=${userId}`);
+    res.redirect(`https://${DOMAIN}/join?userId=${userId}`);
   } catch (err) {
     console.error('Auth error:', err.response?.data || err.message);
     res.status(500).send('Authentication failed');

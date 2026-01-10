@@ -183,7 +183,7 @@ export default {
     },
 
     connectWebSocket () {
-      this.ws = new WebSocket('ws://localhost:3000');
+      this.ws = new WebSocket(process.env.VUE_APP_WS_URL);
       this.ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         switch (data.type) {
@@ -193,7 +193,7 @@ export default {
           case 'NEW_USER':
             this.allUsers.push(data.payload);
             break;
-          case 'WINNER':
+          case 'WINNER': {
             const idx = this.allUsers.findIndex(u => u.id === data.payload.id);
             if (idx !== -1) {
               this.$set(this.allUsers[idx], 'isWinner', true);
@@ -201,6 +201,7 @@ export default {
             this.winner = data.payload;
             this.isDrawing = false;
             break;
+          }
           case 'RESET':
             this.allUsers = [];
             this.winner = null;
@@ -225,7 +226,7 @@ export default {
       }
 
       try {
-        const res = await axios.post('http://localhost:3000/api/draw');
+        const res = await axios.post(process.env.VUE_APP_HOST + 'api/draw');
         const realWinner = res.data.winner;
         await this.simulateSpin(realWinner);
       } catch (err) {

@@ -9,7 +9,7 @@
 export default {
   methods: {
     goWechatAuth () {
-      window.location.href = 'http://localhost:3000/auth/wechat'; // 改为你的后端地址
+      window.location.href = process.env.VUE_APP_HOST + 'auth/wechat';
     }
   }
 }
