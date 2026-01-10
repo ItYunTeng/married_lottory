@@ -27,8 +27,6 @@ environment:
 
 - REDIS_PASSWORD
 
-
-
 ### Compiles and minifies for production
 
 ```
@@ -47,4 +45,5 @@ See [Configuration Reference](https://cli.vuejs.org/config/).
 
 * `certbot` **容器每 12 小时尝试续期（**`--dry-run` **用于测试，正式部署去掉）**
 * **Nginx 和 Certbot 共享卷：**`certbot_data`（证书）、`certbot_www`（验证文件）
+* git rm -r --cached
 
