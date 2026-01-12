@@ -45,6 +45,9 @@ export default {
     try {
       const res = await axios.get(process.env.VUE_APP_HOST + 'api/users');
       this.user = res.data.find(u => u.id === this.userId);
+      if (this.user && !this.isOnWall) {
+        this.isOnWall = true;
+      }
     } catch (e) {
       console.error('Failed to fetch user');
     }
