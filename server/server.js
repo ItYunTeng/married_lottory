@@ -13,11 +13,17 @@ const wss = new WebSocket.Server({ server, path: '/ws' });
 
 // 微信配置（从环境变量读取更安全）
 const DOMAIN = process.env.DOMAIN || '';
+console.log('DOMAIN:', DOMAIN);
 const WECHAT_APPID = process.env.WECHAT_APPID || '';
+console.log('WECHAT_APPID:', WECHAT_APPID);
 const WECHAT_SECRET = process.env.WECHAT_SECRET || '';
+console.log('WECHAT_SECRET:', WECHAT_SECRET);
 const REDIRECT_URI = `https://${DOMAIN}/${process.env.REDIRECT_URI}` || '';
+console.log('REDIRECT_URI:', REDIRECT_URI);
 const WECHAT_OAUTH_URL = process.env.WECHAT_OAUTH_URL || '';
+console.log('WECHAT_OAUTH_URL:', WECHAT_OAUTH_URL);
 const WECHAT_API_URL = process.env.WECHAT_API_URL || '';
+console.log('WECHAT_API_URL:', WECHAT_API_URL);
 
 // 内存中的 WebSocket 客户端（用于广播）
 const clients = new Set();
@@ -51,6 +57,7 @@ async function getEligibleUsers() {
 app.get('/auth/wechat', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   const url = `${WECHAT_OAUTH_URL}/connect/oauth2/authorize?appid=${WECHAT_APPID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=code&scope=snsapi_userinfo&state=${state}#wechat_redirect`;
+  console.log(`Redirecting to ${url}`);
   res.redirect(url);
 });
 
@@ -68,14 +75,20 @@ app.get('/auth/callback', async (req, res) => {
     );
     const { access_token, openid } = tokenRes.data;
 
+    // 3. 生成唯一 ID（可用 openid，但为演示用 hash）
+    const userId = openid;
+
+    const existUser = await redis.hget('users', userId);
+    if (existUser) {
+      res.redirect(`https://${DOMAIN}/join?userId=${userId}`);
+      return;
+    }
+
     // 2. 获取用户信息
     const userRes = await axios.get(
       `${WECHAT_API_URL}/sns/userinfo?access_token=${access_token}&openid=${openid}&lang=zh_CN`
     );
     const wechatUser = userRes.data;
-
-    // 3. 生成唯一 ID（可用 openid，但为演示用 hash）
-    const userId = crypto.createHash('md5').update(openid + Date.now()).digest('hex');
 
     const user = {
       id: userId,
@@ -85,7 +98,6 @@ app.get('/auth/callback', async (req, res) => {
       isWinner: false,
       createdAt: new Date().toISOString()
     };
-
     // 4. 保存到 Redis Hash
     await redis.hset('users', userId, JSON.stringify(user));
 
@@ -144,6 +156,25 @@ app.post('/api/reset', async (req, res) => {
   try {
     await redis.del('users', 'winner_ids');
     broadcast('RESET');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/allUsers', async (req, res) => {
+  try {
+    const allUsers = await redis.hgetall('users');
+    const users = Object.values(allUsers).map(u => JSON.parse(u));
+    broadcast('INIT_USERS', users);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/health', async (req, res) => {
+  try {
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

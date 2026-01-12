@@ -1,4 +1,4 @@
-FROM 10.10.1.56:8091/gmerit-nginx:latest
+FROM crpi-ycbjupxv98brma33.cn-heyuan.personal.cr.aliyuncs.com/ityunteng/nginx:latest
 
 RUN mkdir /etc/nginx/logs \
     && rm -rf /etc/nginx/nginx.conf \

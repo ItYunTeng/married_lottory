@@ -1,6 +1,6 @@
 <!-- src/views/Screen.vue -->
 <template>
-  <div id="screen" style="background: #000; color: white; min-height: 100vh; overflow: hidden; position: relative">
+  <div id="screen" class="screen" :style="'background-image:url(' + Background + ');'">
     <!-- 粒子画布 -->
     <canvas ref="particleCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20"></canvas>
 
@@ -8,7 +8,7 @@
 
     <!-- 中奖公告 -->
     <div v-if="winner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; text-align: center">
-      <div style="background: rgba(0, 0, 0, 0.85); padding: 30px; border-radius: 20px; border: 4px solid gold">
+      <div style="background: rgba(0, 184, 255, 0.85); padding: 30px; border-radius: 20px; border: 4px solid gold">
         <h2 style="font-size: 60px; color: gold; text-shadow: 0 0 20px gold">恭喜 {{ winner.nickname }}！</h2>
         <img :src="winner.avatar" width="150" style="border-radius: 50%; border: 6px solid gold; margin-top: 20px" />
       </div>
@@ -54,18 +54,23 @@
 
     <!-- 参与二维码（右下角悬浮） -->
     <div style="position: fixed; bottom: 20px; right: 20px; z-index: 30; text-align: center">
-      <img src="/assets/qrcode.png" width="120" style="border: 2px solid white; border-radius: 8px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.5)" />
+      <img :src="Qrcode" width="120" style="border: 2px solid white; border-radius: 8px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.5)" />
       <p style="color: white; margin-top: 8px; font-size: 14px">扫码参与抽奖</p>
     </div>
   </div>
 </template>
 
 <script>
+import Background from '@/assets/bga.jpg';
+import Qrcode from '@/assets/qrcode.png';
 import axios from 'axios';
+
 
 export default {
   data () {
     return {
+      Background: Background,
+      Qrcode: Qrcode,
       allUsers: [],
       winner: null,
       isDrawing: false,
@@ -77,6 +82,7 @@ export default {
   },
   computed: {
     eligibleCount () {
+      if (!this.allUsers) return 0;
       return this.allUsers.filter(u => !u.isWinner).length;
     }
   },
@@ -84,6 +90,7 @@ export default {
     this.initAudio();
     this.connectWebSocket();
     this.initParticles();
+    this.fetchUsers();
   },
   beforeDestroy () {
     if (this.ws) this.ws.close();
@@ -98,6 +105,14 @@ export default {
       // 允许自动播放（需用户交互后）
       this.audioStart.load();
       this.audioWin.load();
+    },
+
+    async fetchUsers () {
+      try {
+        await axios.get(process.env.VUE_APP_HOST + 'api/allUsers');
+      } catch (err) {
+        console.error(err);
+      }
     },
 
     // 初始化粒子系统
@@ -183,9 +198,10 @@ export default {
     },
 
     connectWebSocket () {
-      this.ws = new WebSocket(process.env.VUE_APP_WS_URL);
+      this.ws = new WebSocket(process.env.VUE_APP_WS_API);
       this.ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
+        console.log('[WS]', data);
         switch (data.type) {
           case 'INIT_USERS':
             this.allUsers = data.payload;
@@ -289,5 +305,11 @@ export default {
 }
 .winner-glow {
   box-shadow: 0 0 20px gold, 0 0 30px gold !important;
+}
+.screen {
+  color: white;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
 }
 </style>
